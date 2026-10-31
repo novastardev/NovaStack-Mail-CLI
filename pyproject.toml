@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "novastackmail"
+version = "0.1.4"
+description = "Official command-line client for NovaStack Mail"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Novastar" }]
+dependencies = ["requests>=2.25.0", "rich>=13.7.0"]
+
+[project.scripts]
+novastackmail = "novastackmail.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
