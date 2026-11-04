@@ -9,7 +9,7 @@ from rich.panel import Panel
 from rich.prompt import Confirm, Prompt
 
 from .client import DEFAULT_API_BASE, NovaStackMailClient, NovaStackMailError
-from .config import active_profile, config_path, load_config, save_config, validate_profile_name
+from .config import active_profile, clear_config, config_path, load_config, save_config, validate_profile_name
 from .ui import (
     render_attachments, render_header, render_inbox, render_login_success,
     render_logout_cancelled, render_logout_success, render_message,
@@ -59,7 +59,10 @@ def _logout(api_base, timeout, quiet=False):
             profiles = config.get("profiles", {})
             profiles.pop(config.get("active_profile"), None)
             config["active_profile"] = next(iter(profiles), None)
-            save_config(config)
+            if profiles:
+                save_config(config)
+            else:
+                clear_config()
         if not quiet:
             render_logout_success(console, mailbox)
         return 0
