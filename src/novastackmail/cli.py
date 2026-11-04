@@ -9,7 +9,7 @@ from rich.panel import Panel
 from rich.prompt import Confirm, Prompt
 
 from .client import DEFAULT_API_BASE, NovaStackMailClient, NovaStackMailError
-from .config import active_profile, clear_config, config_path, load_config, save_config, validate_profile_name
+from .config import active_profile, config_path, load_config, save_config, validate_profile_name
 from .ui import (
     render_attachments, render_header, render_inbox, render_login_success,
     render_logout_cancelled, render_logout_success, render_message,
@@ -132,7 +132,7 @@ def _date_key(value):
 
 def _read(api_base, timeout, message_id, output=None, download=False, as_json=False, quiet=False, attachments_only=False):
     config = load_config()
-    token = os.environ.get("NOVASTACKMAIL_ACCESS_TOKEN") or (config or {}).get("access_token")
+    token = os.environ.get("NOVASTACKMAIL_ACCESS_TOKEN") or active_profile(config).get("access_token")
     if not token:
         if not quiet:
             render_status_error(console, "No saved mailbox session was found on this device.")
@@ -167,7 +167,7 @@ def _read(api_base, timeout, message_id, output=None, download=False, as_json=Fa
 
 def _search(api_base, timeout, query, as_json=False, quiet=False):
     config = load_config()
-    token = os.environ.get("NOVASTACKMAIL_ACCESS_TOKEN") or (config or {}).get("access_token")
+    token = os.environ.get("NOVASTACKMAIL_ACCESS_TOKEN") or active_profile(config).get("access_token")
     if not token:
         if not quiet:
             render_status_error(console, "No saved mailbox session was found on this device.")
@@ -198,7 +198,7 @@ def _search(api_base, timeout, query, as_json=False, quiet=False):
 
 def _delete(api_base, timeout, message_id, as_json=False, quiet=False, yes=False):
     config = load_config()
-    token = os.environ.get("NOVASTACKMAIL_ACCESS_TOKEN") or (config or {}).get("access_token")
+    token = os.environ.get("NOVASTACKMAIL_ACCESS_TOKEN") or active_profile(config).get("access_token")
     if not token:
         if not quiet:
             render_status_error(console, "No saved mailbox session was found on this device.")
@@ -378,7 +378,7 @@ def main():
         return _read(args.api_base, args.timeout, args.attachments, as_json=args.json, quiet=args.quiet, attachments_only=True)
     if args.download_attachment:
         config = load_config()
-        token = os.environ.get("NOVASTACKMAIL_ACCESS_TOKEN") or (config or {}).get("access_token")
+        token = os.environ.get("NOVASTACKMAIL_ACCESS_TOKEN") or active_profile(config).get("access_token")
         if not token:
             if not args.quiet: render_status_error(console, "No saved mailbox session was found on this device.")
             return 0
