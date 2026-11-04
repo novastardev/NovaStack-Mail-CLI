@@ -97,6 +97,16 @@ class NovaStackMailClient:
             raise NovaStackMailError("A valid message ID is required.")
         return self._request_json("GET", "/v1/mails/auth/messages/" + quote(str(message_id), safe=""), access_token)
 
+    def set_message_read(self, message_id, is_read, access_token=None):
+        if not message_id or len(str(message_id)) > 200:
+            raise NovaStackMailError("A valid message ID is required.")
+        if not isinstance(is_read, bool):
+            raise NovaStackMailError("Read status must be true or false.")
+        return self._request_json(
+            "PATCH", "/v1/mails/auth/messages/" + quote(str(message_id), safe="") + "/read",
+            access_token, json={"isRead": is_read},
+        )
+
     def delete_message(self, message_id, access_token=None):
         if not message_id or len(str(message_id)) > 200:
             raise NovaStackMailError("A valid message ID is required.")
