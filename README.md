@@ -14,6 +14,12 @@ python -m pip install --upgrade --no-cache-dir "git+https://github.com/novastard
 novastackmail --login
 novastackmail --status
 novastackmail --logout
+
+# Additional mailbox profiles
+novastackmail account add work
+novastackmail account list
+novastackmail account use default
+novastackmail account remove work
 ```
 
 Login asks for the mailbox address and mailbox password. The password is never saved. The returned access token is stored in `~/.config/novastackmail/config.json` with owner-only permissions on POSIX systems. The original single-session config is migrated automatically to a `default` profile on first load. Logout revokes and removes only the active profile; other saved profiles remain available.
@@ -34,7 +40,9 @@ novastackmail --download MESSAGE_ID
 novastackmail --download-attachment MESSAGE_ID ATTACHMENT_ID
 novastackmail --delete MESSAGE_ID
 novastackmail --delete MESSAGE_ID --yes
-novastackmail --delete MESSAGE_ID --json --yes\nnovastackmail --mark-read MESSAGE_ID\nnovastackmail --mark-unread MESSAGE_ID
+novastackmail --delete MESSAGE_ID --json --yes
+novastackmail --mark-read MESSAGE_ID
+novastackmail --mark-unread MESSAGE_ID
 ```
 
 Inbox defaults to 10 messages per page and sorts newest first. Use `--page` to navigate and `--per-page` to choose 1–50 messages. Each row displays the original provider MESSAGE ID, which is used directly by `--read`, `--delete`, and attachment commands, plus Read/Unread status. The API enforces the mailbox's configured message limit, up to 100 messages for this CLI endpoint.
@@ -60,7 +68,8 @@ novastackmail --version
 novastackmail --help
 ```
 
-- `--json`: machine-readable JSON output for status, inbox, search, read, attachments, delete, mark-read, mark-unread, and account list.\n- `account add NAME`: sign in and save another mailbox profile. `account list` lists profiles, `account use NAME` switches, and `account remove NAME` revokes and removes one profile.
+- `--json`: machine-readable JSON output for status, inbox, search, read, attachments, delete, mark-read, mark-unread, and account list (place global flags before `account`).
+- `account add NAME`: sign in and save another mailbox profile. `account list` lists profiles, `account use NAME` switches, and `account remove NAME` revokes and removes one profile.
 - `--quiet`: suppress decorative output; destructive actions still require confirmation.
 - `--yes`: explicitly bypass the delete confirmation for scripts.
 - `--output PATH`: choose the saved message/attachment file path.
