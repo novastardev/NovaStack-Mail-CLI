@@ -38,7 +38,12 @@ def load_config(path: Optional[Path] = None):
     try:
         with target.open("r", encoding="utf-8") as handle:
             data = json.load(handle)
-        return normalize_config(data)
+        is_legacy = isinstance(data, dict) and not isinstance(data.get("profiles"), dict)
+        normalized = normalize_config(data)
+        if is_legacy and normalized is not None:
+            # Persist the migration immediately so the old single-token fields are removed.
+            save_config(normalized, target)
+        return normalized
     except (FileNotFoundError, json.JSONDecodeError, OSError):
         return None
 
