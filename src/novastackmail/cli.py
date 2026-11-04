@@ -9,7 +9,7 @@ from rich.panel import Panel
 from rich.prompt import Confirm, Prompt
 
 from .client import DEFAULT_API_BASE, NovaStackMailClient, NovaStackMailError
-from .config import clear_config, config_path, load_config, save_config
+from .config import active_profile, clear_config, config_path, load_config, save_config, validate_profile_name
 from .ui import (
     render_attachments, render_header, render_inbox, render_login_success,
     render_logout_cancelled, render_logout_success, render_message,
@@ -21,9 +21,10 @@ console = Console()
 
 
 def _client_for(config, api_base, timeout):
-    token = os.environ.get("NOVASTACKMAIL_ACCESS_TOKEN") or (config or {}).get("access_token")
+    profile = active_profile(config)
+    token = os.environ.get("NOVASTACKMAIL_ACCESS_TOKEN") or profile.get("access_token")
     return NovaStackMailClient(
-        api_base=(config or {}).get("api_base") or api_base,
+        api_base=profile.get("api_base") or (config or {}).get("api_base") or api_base,
         access_token=token,
         timeout=timeout,
     )
@@ -35,12 +36,12 @@ def _emit_json(value):
 
 def _logout(api_base, timeout, quiet=False):
     config = load_config()
-    token = os.environ.get("NOVASTACKMAIL_ACCESS_TOKEN") or (config or {}).get("access_token")
+    token = os.environ.get("NOVASTACKMAIL_ACCESS_TOKEN") or active_profile(config).get("access_token")
     if not token:
         if not quiet:
             console.print("[yellow]No saved mailbox session was found on this device.[/yellow]")
         return 0
-    mailbox_data = (config or {}).get("mailbox") or {}
+    mailbox_data = active_profile(config).get("mailbox") or {}
     mailbox = mailbox_data.get("address", "your mailbox")
     if not quiet:
         console.print(Panel(
@@ -243,6 +244,19 @@ def main():
     actions.add_argument("--download", metavar="MESSAGE_ID", help="Save a message's plain-text body to a file")
     actions.add_argument("--download-attachment", nargs=2, metavar=("MESSAGE_ID", "ATTACHMENT_ID"), help="Download one message attachment")
     actions.add_argument("--delete", metavar="MESSAGE_ID", help="Delete a message after confirmation")
+    actions.add_argument("--mark-read", metavar="MESSAGE_ID", help="Mark a message as read")
+    actions.add_argument("--mark-unread", metavar="MESSAGE_ID", help="Mark a message as unread")
+
+    subparsers = parser.add_subparsers(dest="command")
+    account_parser = subparsers.add_parser("account", help="Manage saved mailbox profiles")
+    account_actions = account_parser.add_subparsers(dest="account_action", required=True)
+    add_parser = account_actions.add_parser("add", help="Add a mailbox profile")
+    add_parser.add_argument("name", help="Profile name (letters, numbers, hyphens, underscores)")
+    account_actions.add_parser("list", help="List saved mailbox profiles")
+    use_parser = account_actions.add_parser("use", help="Switch the active mailbox profile")
+    use_parser.add_argument("name")
+    remove_parser = account_actions.add_parser("remove", help="Remove a saved mailbox profile")
+    remove_parser.add_argument("name")
     args = parser.parse_args()
 
     if args.config:
@@ -254,6 +268,98 @@ def main():
         parser.error("--timeout must be greater than zero")
     if args.page < 1 or not 1 <= args.per_page <= 50:
         parser.error("--page must be positive and --per-page must be between 1 and 50")
+
+    if args.command == "account":
+        config = load_config() or {"profiles": {}, "active_profile": None}
+        profiles = config.setdefault("profiles", {})
+        if args.account_action == "list":
+            items = [{"name": name, "address": (item.get("mailbox") or {}).get("address", "Unknown"),
+                      "active": name == config.get("active_profile")} for name, item in profiles.items()]
+            if args.json:
+                _emit_json({"profiles": items, "activeProfile": config.get("active_profile")})
+            elif not args.quiet:
+                if not items:
+                    console.print("[yellow]No saved profiles. Use: novastackmail account add NAME[/yellow]")
+                for item in items:
+                    marker = "[green]*[/green]" if item["active"] else " "
+                    console.print(f"{marker} [bold]{item['name']}[/bold]  {item['address']}")
+            return 0
+        if args.account_action == "use":
+            if args.name not in profiles:
+                console.print(f"[red]Profile '{args.name}' does not exist.[/red]")
+                return 1
+            config["active_profile"] = args.name
+            save_config(config)
+            if not args.quiet: console.print(f"[green]Active mailbox profile: {args.name}[/green]")
+            return 0
+        if args.account_action == "remove":
+            if args.name not in profiles:
+                console.print(f"[red]Profile '{args.name}' does not exist.[/red]")
+                return 1
+            profile = profiles[args.name]
+            mailbox = (profile.get("mailbox") or {}).get("address", args.name)
+            if not args.yes and not Confirm.ask(f"[yellow]Remove profile {args.name} ({mailbox}) and revoke its device token?[/yellow]", default=False):
+                console.print("[yellow]Profile removal cancelled.[/yellow]")
+                return 0
+            try:
+                NovaStackMailClient(api_base=profile.get("api_base") or args.api_base, timeout=args.timeout).logout(profile["access_token"])
+            except NovaStackMailError as exc:
+                console.print(f"[red]Could not revoke profile token; profile was kept: {exc}[/red]")
+                return 1
+            profiles.pop(args.name, None)
+            if config.get("active_profile") == args.name:
+                config["active_profile"] = next(iter(profiles), None)
+            save_config(config)
+            if not args.quiet: console.print(f"[green]Profile '{args.name}' removed.[/green]")
+            return 0
+        if args.account_action == "add":
+            if not validate_profile_name(args.name):
+                console.print("[red]Profile name must be 1–32 letters, numbers, hyphens, or underscores, and start with a letter or number.[/red]")
+                return 2
+            if args.name in profiles:
+                console.print(f"[red]Profile '{args.name}' already exists. Use account use or remove first.[/red]")
+                return 2
+            address = Prompt.ask("[cyan]Mailbox address[/cyan]").strip()
+            password = getpass.getpass("Mailbox password: ")
+            if not address or not password:
+                console.print("[red]Mailbox address and password are required.[/red]")
+                return 2
+            try:
+                client = NovaStackMailClient(api_base=args.api_base, timeout=args.timeout)
+                result = client.login(address, password)
+                profiles[args.name] = {
+                    "api_base": args.api_base.rstrip("/"),
+                    "access_token": result["accessToken"],
+                    "expires_at": result.get("expiresAt"),
+                    "mailbox": result.get("mailbox") or {},
+                }
+                if not config.get("active_profile"):
+                    config["active_profile"] = args.name
+                save_config(config)
+                if not args.quiet: render_login_success(console, (result.get("mailbox") or {}).get("address", address), result.get("expiresAt", "not provided"))
+                return 0
+            except NovaStackMailError as exc:
+                console.print(f"[red]Could not add profile: {exc}[/red]")
+                return 1
+
+    if args.mark_read or args.mark_unread:
+        message_id = args.mark_read or args.mark_unread
+        is_read = bool(args.mark_read)
+        config = load_config()
+        token = os.environ.get("NOVASTACKMAIL_ACCESS_TOKEN") or active_profile(config).get("access_token")
+        if not token:
+            if not args.quiet: render_status_error(console, "No saved mailbox session was found on this device.")
+            return 1
+        try:
+            result = _client_for(config, args.api_base, args.timeout).set_message_read(message_id, is_read)
+            if args.json: _emit_json(result)
+            elif not args.quiet:
+                state = "read" if is_read else "unread"
+                console.print(f"[green]Message {message_id} marked as {state} in NovaStack.[/green]")
+            return 0
+        except NovaStackMailError as exc:
+            if not args.quiet: console.print(f"[red]Could not update message status: {exc}[/red]")
+            return 1
 
     if args.status:
         if not args.quiet and not args.json: render_header(console)
@@ -327,10 +433,17 @@ def main():
         with console.status("[cyan]Authenticating with NovaStack Mail…[/cyan]", spinner="dots"):
             client = NovaStackMailClient(api_base=args.api_base, timeout=args.timeout)
             result = client.login(address, password)
-        save_config({
-            "api_base": args.api_base.rstrip("/"), "access_token": result["accessToken"],
-            "expires_at": result.get("expiresAt"), "mailbox": result.get("mailbox") or {},
-        })
+        config = load_config() or {"profiles": {}, "active_profile": None}
+        profiles = config.setdefault("profiles", {})
+        profile_name = config.get("active_profile") or "default"
+        profiles[profile_name] = {
+            "api_base": args.api_base.rstrip("/"),
+            "access_token": result["accessToken"],
+            "expires_at": result.get("expiresAt"),
+            "mailbox": result.get("mailbox") or {},
+        }
+        config["active_profile"] = profile_name
+        save_config(config)
         mailbox = result.get("mailbox") or {}
         if not args.quiet:
             render_login_success(console, mailbox.get("address", address), result.get("expiresAt", "not provided"))
