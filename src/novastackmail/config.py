@@ -42,7 +42,11 @@ def load_config(path: Optional[Path] = None):
         normalized = normalize_config(data)
         if is_legacy and normalized is not None:
             # Persist the migration immediately so the old single-token fields are removed.
-            save_config(normalized, target)
+            try:
+                save_config(normalized, target)
+            except OSError:
+                # A read-only custom config can still be used in migrated in-memory form.
+                pass
         return normalized
     except (FileNotFoundError, json.JSONDecodeError, OSError):
         return None
