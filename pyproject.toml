@@ -3,7 +3,7 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "novastackmail"
+name = "novastackmailcli"
 version = "0.2.0"
 description = "Official command-line client for NovaStack Mail"
 readme = "README.md"
@@ -11,6 +11,23 @@ requires-python = ">=3.9"
 license = { text = "MIT" }
 authors = [{ name = "Novastar" }]
 dependencies = ["requests>=2.25.0", "rich>=13.7.0"]
+keywords = ["novastack", "email", "mail", "cli"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Topic :: Communications :: Email",
+  "Topic :: Utilities",
+]
+
+[project.urls]
+Homepage = "https://github.com/novastardev/NovaStack-Mail-CLI"
+Repository = "https://github.com/novastardev/NovaStack-Mail-CLI"
+Issues = "https://github.com/novastardev/NovaStack-Mail-CLI/issues"
 
 [project.scripts]
 novastackmail = "novastackmail.cli:main"
