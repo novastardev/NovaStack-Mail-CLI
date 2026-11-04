@@ -55,7 +55,7 @@ def _logout(api_base, timeout, quiet=False):
         return 0
     try:
         _client_for(config, api_base, timeout).logout(token)
-        if config and config.get("access_token") == token:
+        if config and active_profile(config).get("access_token") == token and not os.environ.get("NOVASTACKMAIL_ACCESS_TOKEN"):
             clear_config()
         if not quiet:
             render_logout_success(console, mailbox)
@@ -68,7 +68,7 @@ def _logout(api_base, timeout, quiet=False):
 
 def _status(api_base, timeout, as_json=False, quiet=False):
     config = load_config()
-    token = os.environ.get("NOVASTACKMAIL_ACCESS_TOKEN") or (config or {}).get("access_token")
+    token = os.environ.get("NOVASTACKMAIL_ACCESS_TOKEN") or active_profile(config).get("access_token")
     if not token:
         if not quiet:
             render_status_error(console, "No saved mailbox session was found on this device.")
@@ -77,7 +77,7 @@ def _status(api_base, timeout, as_json=False, quiet=False):
         client = _client_for(config, api_base, timeout)
         mailbox = client.get_mailbox(token)
         if config and config.get("access_token") == token:
-            config["mailbox"] = mailbox
+            active_profile(config)["mailbox"] = mailbox
             save_config(config)
         result = {"mailbox": mailbox, "expiresAt": (config or {}).get("expires_at"), "apiBase": client.api_base, "session": "active"}
         if as_json:
@@ -98,7 +98,7 @@ def _inbox(api_base, timeout, page, per_page, as_json=False, quiet=False):
         if not quiet:
             render_status_error(console, "No saved mailbox session was found on this device.")
         return 0
-    mailbox_data = (config or {}).get("mailbox") or {}
+    mailbox_data = active_profile(config).get("mailbox") or {}
     mailbox = mailbox_data.get("address", "your mailbox")
     try:
         client = _client_for(config, api_base, timeout)
@@ -230,7 +230,7 @@ def main():
     parser.add_argument("--output", help="Save a read message body to a file")
     parser.add_argument("--page", type=int, default=1, help="Inbox page number (default: 1)")
     parser.add_argument("--per-page", type=int, default=10, help="Messages per page (1-50; default: 10)")
-    parser.add_argument("--version", action="version", version="%(prog)s 0.1.4")
+    parser.add_argument("--version", action="version", version="%(prog)s 0.2.0")
 
     actions = parser.add_mutually_exclusive_group()
     actions.add_argument("--login", action="store_true", help="Sign in to your mailbox")
