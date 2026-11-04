@@ -5,7 +5,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 from novastackmail.cli import main
-from novastackmail.config import load_config, save_config
+from novastackmail.config import active_profile, load_config, save_config
 from novastackmail.client import NovaStackMailError
 
 
@@ -62,7 +62,7 @@ class StatusCommandTests(unittest.TestCase):
         with patch("sys.argv", ["novastackmail", "--status"]):
             self.assertEqual(main(), 1)
 
-        self.assertEqual(load_config(self.config_path)["access_token"], "a" * 43)
+        self.assertEqual(active_profile(load_config(self.config_path))["access_token"], "a" * 43)
 
 
 if __name__ == "__main__":
