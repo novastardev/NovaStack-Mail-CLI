@@ -27,6 +27,8 @@ def normalize_config(data):
                 "api_base": data.get("api_base"),
             }
         data["profiles"] = profiles
+        for legacy_key in ("access_token", "expires_at", "mailbox", "api_base"):
+            data.pop(legacy_key, None)
     data["active_profile"] = data.get("active_profile") if data.get("active_profile") in profiles else (next(iter(profiles), None))
     return data
 
@@ -63,7 +65,7 @@ def save_config(data, path: Optional[Path] = None) -> Path:
     temporary = target.with_suffix(target.suffix + ".tmp")
     with temporary.open("w", encoding="utf-8") as handle:
         json.dump(normalized, handle, indent=2)
-        handle.write("\\n")
+        handle.write("\n")
     try:
         os.chmod(temporary, 0o600)
     except OSError:
