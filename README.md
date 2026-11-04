@@ -5,6 +5,14 @@ Official Python command-line client for permanent NovaStack Mail mailboxes.
 ## Install
 
 ```bash
+python -m pip install --upgrade novastackmailcli
+```
+
+The distribution is named `novastackmailcli`; the installed terminal command remains `novastackmail`.
+
+For the latest unreleased development version, install directly from GitHub:
+
+```bash
 python -m pip install --upgrade --no-cache-dir "git+https://github.com/novastardev/NovaStack-Mail-CLI.git"
 ```
 
