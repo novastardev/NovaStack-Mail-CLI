@@ -59,7 +59,7 @@ class LogoutCommandTests(unittest.TestCase):
         with patch("sys.argv", ["novastackmail", "--logout"]):
             self.assertEqual(main(), 1)
 
-        self.assertEqual(load_config(self.config_path)["access_token"], "a" * 43)
+        self.assertEqual(active_profile(load_config(self.config_path))["access_token"], "a" * 43)
 
 
 if __name__ == "__main__":
