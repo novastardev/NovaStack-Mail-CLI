@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from novastackmail.config import load_config, save_config
+from novastackmail.config import active_profile, load_config, save_config
 from novastackmail.cli import main
 
 
@@ -32,7 +32,7 @@ class LogoutCommandTests(unittest.TestCase):
             self.assertEqual(main(), 0)
 
         client_class.assert_not_called()
-        self.assertEqual(load_config(self.config_path)["access_token"], "a" * 43)
+        self.assertEqual(active_profile(load_config(self.config_path))["access_token"], "a" * 43)
 
     @patch("novastackmail.cli.Confirm.ask", return_value=True)
     @patch("novastackmail.cli.NovaStackMailClient")
