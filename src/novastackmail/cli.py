@@ -56,7 +56,10 @@ def _logout(api_base, timeout, quiet=False):
     try:
         _client_for(config, api_base, timeout).logout(token)
         if config and active_profile(config).get("access_token") == token and not os.environ.get("NOVASTACKMAIL_ACCESS_TOKEN"):
-            clear_config()
+            profiles = config.get("profiles", {})
+            profiles.pop(config.get("active_profile"), None)
+            config["active_profile"] = next(iter(profiles), None)
+            save_config(config)
         if not quiet:
             render_logout_success(console, mailbox)
         return 0
@@ -76,10 +79,10 @@ def _status(api_base, timeout, as_json=False, quiet=False):
     try:
         client = _client_for(config, api_base, timeout)
         mailbox = client.get_mailbox(token)
-        if config and config.get("access_token") == token:
+        if config and active_profile(config).get("access_token") == token and not os.environ.get("NOVASTACKMAIL_ACCESS_TOKEN"):
             active_profile(config)["mailbox"] = mailbox
             save_config(config)
-        result = {"mailbox": mailbox, "expiresAt": (config or {}).get("expires_at"), "apiBase": client.api_base, "session": "active"}
+        result = {"mailbox": mailbox, "expiresAt": active_profile(config).get("expires_at"), "apiBase": client.api_base, "session": "active"}
         if as_json:
             _emit_json(result)
         elif not quiet:
@@ -93,7 +96,7 @@ def _status(api_base, timeout, as_json=False, quiet=False):
 
 def _inbox(api_base, timeout, page, per_page, as_json=False, quiet=False):
     config = load_config()
-    token = os.environ.get("NOVASTACKMAIL_ACCESS_TOKEN") or (config or {}).get("access_token")
+    token = os.environ.get("NOVASTACKMAIL_ACCESS_TOKEN") or active_profile(config).get("access_token")
     if not token:
         if not quiet:
             render_status_error(console, "No saved mailbox session was found on this device.")
@@ -184,7 +187,7 @@ def _search(api_base, timeout, query, as_json=False, quiet=False):
         if as_json:
             _emit_json({"query": query, "count": len(matches), "messages": matches})
         elif not quiet:
-            mailbox = ((config or {}).get("mailbox") or {}).get("address", "your mailbox")
+            mailbox = (active_profile(config).get("mailbox") or {}).get("address", "your mailbox")
             render_inbox(console, mailbox, matches, {"page": 1, "perPage": len(matches), "total": len(matches), "totalPages": 1})
         return 0
     except NovaStackMailError as exc:
