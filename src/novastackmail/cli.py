@@ -141,13 +141,22 @@ def _read(api_base, timeout, message_id, output=None, download=False, as_json=Fa
             render_status_error(console, "No saved mailbox session was found on this device.")
         return 0
     try:
-        message = _client_for(config, api_base, timeout).read_message(message_id)
+        client = _client_for(config, api_base, timeout)
+        message = client.read_message(message_id)
         if attachments_only:
             if as_json:
                 _emit_json({"attachments": message.get("attachments") or []})
             elif not quiet:
                 render_attachments(console, message)
             return 0
+        # Opening a message marks it as read in NovaStack's mailbox state.
+        # Keep the read operation usable even if this secondary update fails.
+        try:
+            client.set_message_read(message_id, True)
+            message["isRead"] = True
+        except NovaStackMailError as status_error:
+            if not quiet:
+                console.print(f"[yellow]Message opened, but read status could not be updated: {status_error}[/yellow]")
         if output or download:
             import re
             safe_id = re.sub(r"[^A-Za-z0-9_-]", "_", str(message_id))[:80] or "message"
