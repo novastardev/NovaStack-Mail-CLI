@@ -36,13 +36,24 @@ class InboxCommandTests(unittest.TestCase):
         client.get_inbox_page.assert_called_once_with(2, 10)
 
     @patch("novastackmail.cli.NovaStackMailClient")
-    def test_read_message_calls_message_endpoint(self, client_class):
+    def test_read_message_marks_message_as_read_and_returns_updated_status(self, client_class):
         client = Mock()
-        client.read_message.return_value = {"id": "msg-1", "text": "Hello", "attachments": []}
+        client.read_message.return_value = {"id": "msg-1", "text": "Hello", "isRead": None, "attachments": []}
+        client.set_message_read.return_value = {"id": "msg-1", "isRead": True, "statusScope": "novastack"}
+        client_class.return_value = client
+        with patch("sys.argv", ["novastackmail", "--read", "msg-1", "--json"]):
+            self.assertEqual(main(), 0)
+        client.read_message.assert_called_once_with("msg-1")
+        client.set_message_read.assert_called_once_with("msg-1", True)
+
+    @patch("novastackmail.cli.NovaStackMailClient")
+    def test_read_message_still_displays_if_mark_read_fails(self, client_class):
+        client = Mock()
+        client.read_message.return_value = {"id": "msg-1", "text": "Hello", "isRead": None, "attachments": []}
+        client.set_message_read.side_effect = NovaStackMailError("Read status unavailable.")
         client_class.return_value = client
         with patch("sys.argv", ["novastackmail", "--read", "msg-1", "--quiet"]):
             self.assertEqual(main(), 0)
-        client.read_message.assert_called_once_with("msg-1")
 
     @patch("novastackmail.cli.NovaStackMailClient")
     @patch("novastackmail.cli.Confirm.ask", return_value=True)
