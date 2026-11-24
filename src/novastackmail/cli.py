@@ -245,7 +245,7 @@ def main():
     parser.add_argument("--output", help="Save a read message body to a file")
     parser.add_argument("--page", type=int, default=1, help="Inbox page number (default: 1)")
     parser.add_argument("--per-page", type=int, default=10, help="Messages per page (1-50; default: 10)")
-    parser.add_argument("--version", action="version", version="%(prog)s 0.2.0")
+    parser.add_argument("--version", action="version", version="%(prog)s 0.2.1")
 
     actions = parser.add_mutually_exclusive_group()
     actions.add_argument("--login", action="store_true", help="Sign in to your mailbox")
